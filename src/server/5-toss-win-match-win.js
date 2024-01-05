@@ -6,6 +6,7 @@ const csv = require('csv-parser');
 const csvFilePathMatches = '../data/matches.csv';
 const matchesData = [];
 
+// Read CSV file and populate matchesData
 fs.createReadStream(csvFilePathMatches)
   .pipe(csv())
   .on('data', (row) => {
@@ -14,20 +15,14 @@ fs.createReadStream(csvFilePathMatches)
   .on('end', () => {
     const wonTossMatch = {};
 
-    for (let i = 0; i < matchesData.length; i++) {
-      const match = matchesData[i];
-      const tossWinner = match.toss_winner;
-      const matchWinner = match.winner;
+    // Count the number of times each team won the toss and the match
+    matchesData.forEach((match) => {
+      const { toss_winner, winner } = match;
 
-      if (tossWinner && matchWinner && tossWinner === matchWinner) {
-        // The team won both the toss and the match
-        if (!wonTossMatch[tossWinner]) {
-          wonTossMatch[tossWinner] = 1;
-        } else {
-          wonTossMatch[tossWinner]++;
-        }
+      if (toss_winner && winner && toss_winner === winner) {
+        wonTossMatch[toss_winner] = (wonTossMatch[toss_winner] || 0) + 1;
       }
-    }
+    });
 
     // Output the result
     console.log(wonTossMatch);
