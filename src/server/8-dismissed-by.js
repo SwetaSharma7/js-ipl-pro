@@ -37,9 +37,8 @@ fs.createReadStream(csvFilePathMatches)
         );
 
         // Output the result
-        // Output the result
         const outputPath = '../public/output/dismissedByOther.json';  
-        fs.writeFileSync(outputPath, JSON.stringify(dismissedCounts, null, 2));
+        fs.writeFileSync(outputPath, JSON.stringify([maxDismissedPair, maxDismissals], null, 2));
 
         console.log(`The highest number of times one player has been dismissed by another player is ${maxDismissals} times.`);
         console.log(`Player dismissed: ${maxDismissedPair.split('-')[0]}, Bowler: ${maxDismissedPair.split('-')[1]}`);

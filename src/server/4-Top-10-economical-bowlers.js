@@ -1,78 +1,83 @@
-const fs = require('fs');
-const csv = require('csv-parser');
+const fs=require('fs');
+const csv=require('csv-parser');
 
-const csvFilePathDeliveries = '../data/deliveries.csv';
-const csvFilePathMatches = '../data/matches.csv';
+const csvFilePathMatches='../data/matches.csv';
+const csvFilePathDeliveries='../data/deliveries.csv';
 
-// Function to read CSV file and return data
-const readCSVFile = (filePath, onData) => {
-  return new Promise((resolve) => {
-    const data = [];
-    fs.createReadStream(filePath)
-      .pipe(csv())
-      .on('data', (row) => onData(data, row))
-      .on('end', () => resolve(data));
-  });
-};
+const matchesData=[];
+const deliveriesData=[];
 
-// Function to filter matches for the year 2015
-const filterMatchesForYear = (matchesData) => {
-  return matchesData
-    .filter(match => match.season === '2015')
-    .map(match => match.id);
-};
+fs.createReadStream(csvFilePathMatches)
+.pipe(csv())
+.on('data',(row) =>{
+     matchesData.push(row);
+})
+.on('end', () => {
+    let arrayOfIds=matchesData.filter(match => {
+        return match.season=="2015";
+    })
+    .map(element => {
+        return element.id;
+    })
 
-// Function to calculate bowler economies
-const calculateBowlerEconomies = (arrOfId, deliveriesData) => {
-  const bowlerEconomies = {};
+    // console.log(arrayOfIds);
+    // console.log(deliveriesData);mb
 
-  deliveriesData.forEach((delivery) => {
-    const { match_id, bowler, total_runs, extra_runs } = delivery;
-    const isExtra = extra_runs !== '0';
+    fs.createReadStream(csvFilePathDeliveries)
+    .pipe(csv())
+    .on('data', (row) =>{
+        deliveriesData.push(row);
+    })
+    .on('end', () =>{
+        // console.log(deliveriesData);
+        let deliveriesArrayOdIds=deliveriesData.filter(element => {
+            if(arrayOfIds.includes(element.match_id)){
+                return element.match_id;
+            }
+        });
 
-    if (arrOfId.includes(match_id) && !isExtra) {
-      bowlerEconomies[bowler] = bowlerEconomies[bowler] || { runs: 0, balls: 0 };
+        let obj=deliveriesArrayOdIds.reduce(function(acc,curr){
+                  if(acc[curr.bowler]){
+                    acc[curr.bowler].run+=parseInt(curr.total_runs),
+                    acc[curr.bowler].balls+=1;
+                  }
+                  else{
+                    acc[curr.bowler]={
+                        run : parseFloat(curr.total_runs),
+                        balls :1
+                    }
+                  }
 
-      bowlerEconomies[bowler].runs += parseInt(total_runs, 10);
-      bowlerEconomies[bowler].balls++;
-    }
-  });
+                  return acc;
+        },{});
 
-  return bowlerEconomies;
-};
+        let arrayOfObjects=Object.entries(obj);
 
-// Function to calculate economy and get top 10 bowlers
-const calculateAndSortEconomy = (bowlerEconomies) => {
-  return Object.keys(bowlerEconomies)
-    .sort((a, b) => bowlerEconomies[a].economy - bowlerEconomies[b].economy)
-    .slice(0, 10);
-};
+        let economyOfBowlers=arrayOfObjects.reduce(function(acc,curr) {
+            let runs=curr[1].run;
+            let balls=curr[1].balls;
 
-// Function to save result to a JSON file
-const saveResultToFile = (top10) => {
-  const outputPath = '../public/output/top10EconomicalBowlers2015.json';
-  fs.writeFileSync(outputPath, JSON.stringify(top10, null, 2));
-  console.log(top10);
+            let economy=(runs/balls)*6;
+            acc[curr[0]]=economy;
 
-  console.log('Output saved to', outputPath);
-};
+            return acc;
+        },{})
 
-// Main function
-const main = async () => {
-  const matchesData = await readCSVFile(csvFilePathMatches, (data, row) => data.push(row));
-  const arrOfId = filterMatchesForYear(matchesData);
+    //  console.log(economyOfBowlers);
 
-  const deliveriesData = await readCSVFile(csvFilePathDeliveries, (data, row) => data.push(row));
-  const bowlerEconomies = calculateBowlerEconomies(arrOfId, deliveriesData);
+     let sortedBowlers=Object.keys(economyOfBowlers);
+     sortedBowlers=sortedBowlers.sort((a,b) =>{
+        
+            return economyOfBowlers[a]-economyOfBowlers[b];
+     });
 
-  for (const bowler in bowlerEconomies) {
-    const { runs, balls } = bowlerEconomies[bowler];
-    bowlerEconomies[bowler].economy = balls !== 0 ? (runs / balls) * 6 : 0;
-  }
+        // console.log(sortedBowlers);
+   
 
-  const top10 = calculateAndSortEconomy(bowlerEconomies);
-  saveResultToFile(top10);
-};
+       const top10Bowlers=sortedBowlers.slice(0,10);
+       console.log(top10Bowlers);
 
-// Run the main function
-main();
+        const ouputPath='../public/output/top10bowlersin2015.json';
+        fs.writeFileSync(ouputPath,JSON.stringify(top10Bowlers,null, 2))
+    });
+});
