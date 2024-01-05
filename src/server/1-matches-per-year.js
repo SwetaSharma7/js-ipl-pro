@@ -1,41 +1,30 @@
-// Number of matches played per year for all the years in IPL.
-
-//import file system module for file operations
-const fs =require('fs');
-
-//import the csv-parser module for CSV parsing
+const fs = require('fs');
 const csv = require('csv-parser');
-const { stringify } = require('querystring');
 
-
-const csvFilePathMatches='../data/matches.csv';
-
-//empty arr to store parsed csv data from matches.csv
-const matchesData=[];
+const csvFilePathMatches = '../data/matches.csv';
+const matchesData = [];
 
 // Create a readable stream for the matches
 fs.createReadStream(csvFilePathMatches)
-.pipe(csv())
-.on('data',(row) => {
+  .pipe(csv())
+  .on('data', (row) => {
+    // Push each row of data into the matchesData array
     matchesData.push(row);
-})
-.on('end', () =>{
-    const matchesPerYear={};
+  })
+  .on('end', () => {
+    const matchesPerYear = {};
 
-// here I am using the loop to get desired output
-    for(let index=0;index<matchesData.length;index++){
-        const year=matchesData[index].season;
+    // Use forEach to iterate over each matchData entry
+    matchesData.forEach((match) => {
+      const year = match.season;
 
-        if(!matchesPerYear[year]){
-            matchesPerYear[year]=1;
-        }
-        else{
-            matchesPerYear[year]++;
-        }
-    }
+      // Increment the count for the corresponding year in matchesPerYear
+      matchesPerYear[year] = (matchesPerYear[year] || 0) + 1;
+    });
+
     console.log(matchesPerYear);
 
-    // here I am storing output in .json file which is in public output.
-    const outputPath='../public/output/matchesPerYear.json';
+    // Write the result to a JSON file
+    const outputPath = '../public/output/matchesPerYear.json';
     fs.writeFileSync(outputPath, JSON.stringify(matchesPerYear, null, 2));
-});
+  });
