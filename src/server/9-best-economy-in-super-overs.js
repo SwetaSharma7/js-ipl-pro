@@ -1,67 +1,66 @@
 const fs = require('fs');
 const csv = require('csv-parser');
 
-const csvFilePathDeliveries = '../data/deliveries.csv';
-const csvFilePathMatches = '../data/matches.csv';
-const deliveriesData = [];
-const matchesData = [];
+const deliveriesFilePath = '../data/deliveries.csv';
 
-// Read matches data
-fs.createReadStream(csvFilePathMatches)
-  .pipe(csv())
-  .on('data', (row) => {
-    matchesData.push(row);
-  })
-  .on('end', () => {
-    // Read deliveries data
-    fs.createReadStream(csvFilePathDeliveries)
-      .pipe(csv())
-      .on('data', (row) => {
-        deliveriesData.push(row);
-      })
-      .on('end', () => {
-        // Your logic to find the bowler with the best economy in super overs
-        const superOverDeliveries = deliveriesData.filter((delivery) => {
-          const matchId = delivery.match_id;
-          const isSuperOver = matchesData.some((match) => match.id === matchId && match.is_super_over === '1');
-          return isSuperOver;
+// Function to extract data and calculate best economy bowler in super over
+const extractDataAndCalculateBestEconomy = () => {
+  const deliveriesData = [];
+
+  // Reading the deliveries CSV data file using fs and csv-parser
+  fs.createReadStream(deliveriesFilePath)
+    .pipe(csv())
+    .on('data', (data) => {
+      deliveriesData.push(data);
+    })
+    .on('end', () => {
+      try {
+        let newObject = {};
+
+        // Iterating through deliveries data and checking for super overs
+        for (let object of deliveriesData) {
+          let isSuperOver = object.is_super_over;
+          let bowler = object.bowler;
+          let totalRuns = object.total_runs;
+
+          // If super over is true, storing the result in newObject
+          if (isSuperOver == 1) {
+            if (newObject.hasOwnProperty(bowler)) {
+              newObject[bowler].runs += parseInt(totalRuns);
+              newObject[bowler].balls += 1;
+            } else {
+              newObject[bowler] = {
+                runs: parseInt(totalRuns),
+                balls: 1,
+              };
+            }
+          }
+        }
+
+        // Calculating the economy rate
+        for (let key in newObject) {
+          newObject[key].economy = newObject[key].runs / (newObject[key].balls / 6);
+        }
+
+        let keysArray = Object.keys(newObject);
+
+        // Sorting the bowlers based on economy rate
+        let sortedKeys = keysArray.sort(function (key1, key2) {
+          return newObject[key1].economy - newObject[key2].economy;
         });
 
-        const bowlerStats = {};
+        let finalOutput = [sortedKeys[0], newObject[sortedKeys[0]]];
+        console.log(finalOutput);
 
-        for (let i = 0; i < superOverDeliveries.length; i++) {
-          const delivery = superOverDeliveries[i];
-          const bowler = delivery.bowler;
-          const totalRuns = parseInt(delivery.total_runs);
-          const extras = parseInt(delivery.extra_runs);
+        // Dumping the result to the output folder
+        
+        const dumpPath = '../public/output/bestEconomyInSuperOver.json';
+        fs.writeFile(dumpPath, JSON.stringify(finalOutput), () => {});
+      } catch (error) {
+        console.log(error);
+      }
+    });
+};
 
-          if (bowlerStats[bowler]) {
-            bowlerStats[bowler].runs += totalRuns;
-            bowlerStats[bowler].balls++;
-          } else {
-            bowlerStats[bowler] = { runs: totalRuns, balls: 1 };
-          }
-        }
-
-        // Calculate economy rate for each bowler
-        for (const bowler in bowlerStats) {
-          const { runs, balls } = bowlerStats[bowler];
-          const economyRate = (runs / balls) * 6; // Runs per over
-
-          bowlerStats[bowler].economyRate = economyRate.toFixed(2);
-        }
-
-        // Find the bowler with the best economy in super overs
-        let bestEconomyBowler;
-        let minEconomyRate = Infinity;
-
-        for (const bowler in bowlerStats) {
-          if (bowlerStats[bowler].economyRate < minEconomyRate) {
-            minEconomyRate = bowlerStats[bowler].economyRate;
-            bestEconomyBowler = bowler;
-          }
-        }
-
-        console.log(`The bowler with the best economy rate in super overs is ${bestEconomyBowler} with an economy rate of ${minEconomyRate}.`);
-      });
-  });
+// Calling the function to extract data and calculate best economy bowler
+extractDataAndCalculateBestEconomy();
